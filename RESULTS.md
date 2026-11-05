@@ -13,7 +13,7 @@
 - Severity: Medium. The server fails on input the client controls, and the empty body gives the calling app no message to show. It affects one rare input and no data is lost.
 
 ## Part A
-- Step A4, status codes when the other user reads, changes and deletes:
+- Step A4, status codes when the other user reads, changes and deletes: read 404 (`not found`), change 400 (`rating ID ... not found`), delete 400 (`rating ID ... not found`). In every case the owner still reads the same rating afterwards.
 ## Part B
 1.
 2.
