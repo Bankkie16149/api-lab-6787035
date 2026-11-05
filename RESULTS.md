@@ -3,7 +3,7 @@
 - Step 0.1, the number of pizza names: 18
 - Step 0.3, status code of the request without a token: 401
 - Step 0.4, the name of your pizza:  A Little Prosciutto
-- Step 0.12, results of the three runs without a session (optional):
+- Step 0.12, results of the three runs without a session (optional): run1 : fail run2 : fail run3 : fail
 - Step 0.16, blocks of "how many of the three tools are excluded":
 ## Defect report
 - Title:
