@@ -1,16 +1,10 @@
 # api-lab: API testing with pytest and requests (ITDS362)
 
-Tests for the QuickPizza API at https://quickpizza.grafana.com.
+ชุดการทดสอบ API ของ QuickPizza (https://quickpizza.grafana.com) สำหรับวิชา ITDS362 Software Quality Assurance and Testing
 
-## Install and run
-```bash
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-pytest -v
-pytest -v --html=report.html --self-contained-html   # HTML report
-```
-Every test creates its own user, so the tests do not depend on each other.
+สำหรับรายละเอียดผลการทดสอบทั้งหมด, รายงานข้อบกพร่อง (Defect Report), และคำตอบส่วนข้อคำถาม (Part B) สามารถดูได้ที่ [RESULTS.md](RESULTS.md) รวมทั้งดูรายงานสรุปผลการรันเทสฉบับสมบูรณ์ได้จากไฟล์ [report.html](report.html)
+
+---
 
 ## Input domain model for POST /api/ratings
 
@@ -29,10 +23,12 @@ Every test creates its own user, so the tests do not depend on each other.
 | | none | no header | `test_no_token_is_refused` |
 | | wrong length | token abc | `test_short_token_is_refused` |
 
-Base choice coverage needs 1 + 2 + 3 + 1 + 2 = 9 tests (the 9 tests in
-`test_create_rating.py`). All combinations would need 3 x 4 x 2 x 3 = 72.
+Base choice coverage needs 1 + 2 + 3 + 1 + 2 = 9 tests (the 9 tests in `test_create_rating.py`). All combinations would need 3 x 4 x 2 x 3 = 72.
 
-## Other files
-- `test_update_rating.py`: boundary values 0, 1, 5, 6 for PUT /api/ratings/{id}
-- `test_rating_owner.py`: another user may not read, change or delete a rating
-- `test_excluded_tools.py`: includes the xfail test for Defect 1 (see RESULTS.md)
+## Overview of Test Files
+- `test_create_rating.py`: ครอบคลุม Base Choice Coverage จาก Input Space Partitioning สำหรับการสร้าง Rating
+- `test_update_rating.py`: ทดสอบ Boundary Values (0, 1, 5, 6) สำหรับ PUT /api/ratings/{id}
+- `test_rating_owner.py`: ทดสอบสิทธิ์การเข้าถึงข้อมูลของ Rating (ไม่อนุญาตให้ผู้ใช้อื่นอ่าน แก้ไข หรือลบ)
+- `test_excluded_tools.py`: ทดสอบการยกเว้นเครื่องมือ และตรวจจับ Defect กรณีที่ยกเว้นครบทุกเครื่องมือ (xfail)
+- `test_refused.py`: ทดสอบกรณี Request ที่ต้องถูกปฏิเสธ (Username ซ้ำ, รหัสผิด, ชื่อว่าง)
+- `test_names.py`, `test_tools.py`, `test_pizza.py`, `test_users.py`: ชุดทดสอบพื้นฐานและตรวจสอบ Token / User ratings
