@@ -15,49 +15,49 @@
 ## Part A
 - Step A4, status codes when the other user reads, changes and deletes: read 404 (`not found`), change 400 (`rating ID ... not found`), delete 400 (`rating ID ... not found`). In every case the owner still reads the same rating afterwards.
 ## Part B
-1. Two kinds of failures that tests against a real server can find (which unit tests with stubs cannot):
-   - Network / load balancer issues (such as session stickiness failures and routing across multiple server instances).
-   - Integration / schema mismatches with the real backend service, database constraints, or live serialization bugs.
-   Reason to still write unit tests with stubs:
-   - Unit tests are extremely fast to execute, do not depend on external network stability or live server availability, and isolate the exact location of a code fault directly without network noise.
+1. ความล้มเหลว 2 แบบที่การทดสอบกับเซิร์ฟเวอร์จริง (Real Server) ตรวจพบได้ แต่ Unit Test ที่ใช้ Stub ตรวจไม่พบ:
+   - ปัญหาด้านเครือข่ายและ Load Balancer (เช่น Session ไม่คงที่/Sticky Session ขัดข้อง หรือการกระจายคำขอไปยังหลายเครื่องทำให้ข้อมูลซิงค์ไม่ทัน)
+   - ปัญหาการเชื่อมต่อ (Integration/Schema) ระหว่างบริการจริงกับฐานข้อมูล เช่น Data Type ไม่ตรงกัน, ข้อจำกัดของ DB จริง, หรือข้อผิดพลาดตอน Serialize/Deserialize ข้อมูล
+   เหตุผลที่ยังจำเป็นต้องเขียน Unit Test คู่ไปด้วย:
+   - Unit Test ทำงานได้เร็วกว่ามาก ไม่ต้องพึ่งพาเครือข่ายหรือสถานะของเซิร์ฟเวอร์ภายนอก และสามารถระบุจุดที่โค้ดมีบั๊ก (Fault Localization) ได้อย่างเจาะจงโดยไม่มี Noise จากระบบเครือข่าย
 
-2. Why each test creates its own user:
-   - To ensure test isolation and prevent race conditions or data collisions. If tests shared a public token or account, concurrent runs or other students could alter, overwrite, or delete ratings while a test is executing.
-   Application to Project 2 (shared shop or hotel):
-   - For Project 2, each test suite or test case should register its own unique user/entity (e.g. unique username prefix or cart token) and only manipulate or assert data created by itself, cleaning up after execution to avoid interfering with other groups.
+2. ทำไมแต่ละเทสต้องสร้าง User ใหม่ของตัวเอง แทนการใช้ Public Token:
+   - เพื่อให้เกิดความอิสระของชุดทดสอบ (Test Isolation) และป้องกันไม่ให้เกิด Race Condition หรือข้อมูลตีกัน เพราะหากใช้โทเค็นสาธารณะร่วมกัน ข้อมูลอาจถูกนักศึกษาคนอื่นหรือเทสตัวอื่นแก้ไข/ลบทิ้งระหว่างที่เทสกำลังรัน
+   การนำแนวคิดนี้ไปประยุกต์ใช้ใน Project 2 (ระบบร้านค้าหรือโรงแรม):
+   - ใน Project 2 ควรให้แต่ละกลุ่มหรือแต่ละเทสสร้าง Entity ของตัวเองแยกกันชัดเจน (เช่น ใช้ Prefix ชื่อผู้ใช้เฉพาะกลุ่ม หรือ Cart-Token ของตัวเอง) และจัดการเฉพาะข้อมูลที่เทสนั้นสร้างขึ้น พร้อมทำความสะอาด (Cleanup) ลบข้อมูลทิ้งหลังรันเสร็จ เพื่อไม่ให้กระทบข้อมูลกลุ่มอื่น
 
-3. Why tests send every request through one session:
-   - QuickPizza operates multiple server instances behind a load balancer, and user state/memory is not shared instantly across all instances. Using a single `requests.Session` retains cookies (such as `AWSALB` and `AWSALBCORS`), which forces the load balancer to route all sequential requests from that session to the same backend server.
-   Step 0.12 run results:
-   - In Step 0.12 without a session, all three test runs failed (run1: fail, run2: fail, run3: fail) with 401 Unauthorized because the subsequent login request was routed to a server instance that had not processed the user creation request.
+3. ทำไมเทสต้องส่งทุกคำขอผ่าน Session เดียวกัน:
+   - QuickPizza มีเซิร์ฟเวอร์หลายเครื่องทำงานอยู่หลัง Load Balancer โดยแต่ละเครื่องเก็บข้อมูลผู้ใช้แยกกัน การใช้ `requests.Session` เดียวกันจะช่วยบันทึก Cookie (เช่น `AWSALB`, `AWSALBCORS`) ทำให้ Load Balancer ส่งคำขอต่อเนื่องทั้งหมดไปยังเซิร์ฟเวอร์เครื่องเดิมเสมอ
+   ผลการทดลองใน Step 0.12 (ไม่ใช้ Session):
+   - ผลการรัน 3 ครั้งล้มเหลวทั้งหมด (run 1: fail, run 2: fail, run 3: fail) โดยติด Error 401 Unauthorized ในขั้นตอนล็อกอิน เพราะคำขอล็อกอินถูกส่งไปยังเซิร์ฟเวอร์เครื่องอื่นที่ไม่รู้จัก User ที่เพิ่งสร้างขึ้น
 
-4. Excluded tools block and defect explanation:
-   - Block that revealed the defect: The block where all 3 tools are excluded (`["Knife", "Pizza cutter", "Scissors"]`).
-   - Why 500 with empty body is worse than 400 with a message: A 500 error signifies an unhandled server crash/exception, leaving client applications without any actionable error message to inform the user what went wrong. A 400 with a descriptive JSON message clarifies that the client sent an impossible request (no pizza can be cut without a tool).
-   - Why keep the test as xfail: Keeping it marked with `@pytest.mark.xfail(..., strict=True)` documents the defect within the test suite without breaking the build/CI pipeline. With `strict=True`, if the backend developers ever fix the bug, pytest will fail (XPASS), immediately notifying the QA engineer to update the test expectation and remove the mark.
+4. การวิเคราะห์บั๊กใน Step 0.16 (Excluded Tools):
+   - บล็อกที่เผยให้เห็น Defect: บล็อกที่ยกเว้นเครื่องมือครบทั้ง 3 ชนิด (`["Knife", "Pizza cutter", "Scissors"]`)
+   - ทำไม 500 (Empty body) ถึงแย่กว่า 400 (มีข้อความ): Status 500 หมายถึงเซิร์ฟเวอร์เกิด Crash ภายในโดยไม่คาดคิด และการที่ Body ว่างเปล่าทำให้แอปพลิเคชันฝั่ง Client ไม่สามารถนำข้อความไปแสดงแจ้งผู้ใช้ได้ว่าส่งข้อมูลผิดพลาดอะไร ในขณะที่ 400 เป็นการบอกชัดเจนว่าคำขอผิดกฎ (เพราะไม่มีเครื่องมือตัดพิซซ่า)
+   - ทำไมถึงคงเทสไว้ในชุดทดสอบเป็น xfail แทนที่จะลบทิ้ง: การใส่ `@pytest.mark.xfail(..., strict=True)` ช่วยบันทึกและติดตามข้อบกพร่องไว้ใน Test Suite โดยไม่ทำให้ CI/CD ล่ม และการมี `strict=True` จะคอยเตือนทันทีเมื่อทีมพัฒนาแก้ไขบั๊กนี้แล้ว (เทสจะกลายเป็น XPASS/Failed) เพื่อให้เราทราบและปรับปรุงเทสให้เป็นเทสปกติ
 
-5. Test count calculation for Step A1 model:
-   - Characteristics and blocks:
-     - C1 (Value of stars): 3 blocks
-     - C2 (Type of stars): 4 blocks
-     - C3 (Pizza exists): 2 blocks
-     - C4 (Token): 3 blocks
-   - Base Choice Coverage (BCC): 1 (base test covering all base blocks) + (3 - 1) + (4 - 1) + (2 - 1) + (3 - 1) = 1 + 2 + 3 + 1 + 2 = 9 tests.
-   - All Combinations Coverage (AC): 3 * 4 * 2 * 3 = 72 tests.
+5. การคำนวณจำนวนเทสสำหรับโมเดลใน Step A1:
+   - คุณลักษณะ (Characteristic) และจำนวนบล็อก:
+     - C1 (ค่าดาว): 3 บล็อก
+     - C2 (ชนิดของดาว): 4 บล็อก
+     - C3 (พิซซ่ามีอยู่จริง): 2 บล็อก
+     - C4 (โทเค็น): 3 บล็อก
+   - Base Choice Coverage (BCC): 1 (Base Test ที่รวมบล็อกหลักทุกตัว) + (3 - 1) + (4 - 1) + (2 - 1) + (3 - 1) = 1 + 2 + 3 + 1 + 2 = 9 เทส
+   - All Combinations Coverage (AC): 3 * 4 * 2 * 3 = 72 เทส
 
-6. Status codes in Step A4 and evaluation:
-   - Observed status codes:
-     - Read: 404 Not Found (`{"error":"not found"}`)
-     - Update: 400 Bad Request (`{"error":"rating ID ... not found"}`)
-     - Delete: 400 Bad Request (`{"error":"rating ID ... not found"}`)
-   - Expected status codes: Ideally 404 (Not Found) or 403 (Forbidden) for unauthorized resource access on another user's rating.
-   - Is it a defect? Yes, returning 400 (Bad Request) for missing/inaccessible resource operations is an inconsistency and misuse of HTTP semantics (400 represents malformed syntax/bad request parameters, whereas non-existent or inaccessible IDs should return 404 or 403). However, security-wise the resource remains protected as the rating was neither disclosed nor modified.
+6. รหัสสถานะ (Status Code) ใน Step A4 และการประเมิน:
+   - รหัสสถานะที่ได้รับจริง:
+     - อ่าน (Read): ได้ 404 Not Found (`{"error":"not found"}`)
+     - แก้ไข (Update): ได้ 400 Bad Request (`{"error":"rating ID ... not found"}`)
+     - ลบ (Delete): ได้ 400 Bad Request (`{"error":"rating ID ... not found"}`)
+   - รหัสสถานะที่ควรจะเป็น: ควรได้ 404 (Not Found) หรือ 403 (Forbidden) สม่ำเสมอกันทุกกรณี
+   - ถือว่าเป็น Defect หรือไม่: ถือว่าเป็น Defect ด้านความสอดคล้องตามมาตรฐาน HTTP (Inconsistent HTTP Semantics) เนื่องจากการหา Resource ไม่เจอหรือไม่มีสิทธิ์ไม่ควรตอบกลับเป็น 400 (ซึ่งหมายถึง Bad Request / Syntax ผิด) อย่างไรก็ตาม ในแง่ความปลอดภัยถือว่ายังปลอดภัยเพราะข้อมูลไม่ได้ถูกเปิดเผยหรือถูกแก้ไข
 
-7. Test with made-up token (`0000000000000000`):
-   - What comes back: Status `HTTP/2 200 OK` returning the full list of all ratings stored on that server instance (`{"ratings":[...]}`).
-   - Is this a defect? Yes, it is a significant authentication/authorization bypass defect. The API server only validates that the token string exists and satisfies a 16-character length constraint, without verifying whether the token actually corresponds to an authenticated session or valid user in the database.
-   - Potential impact on a real system: An unauthorized attacker or stranger could craft arbitrary dummy tokens to bypass authentication, inspect sensitive ratings or customer records, and potentially compromise system privacy.
+7. ผลการทดสอบด้วยโทเค็นสมมติ (`0000000000000000`):
+   - สิ่งที่ได้รับกลับมา: เซิร์ฟเวอร์ตอบกลับด้วย `HTTP/2 200 OK` พร้อมรายการ Ratings ทั้งหมดของเซิร์ฟเวอร์นั้น
+   - เป็น Defect หรือไม่: เป็น Defect ด้านความปลอดภัยที่ร้ายแรง (Authentication Bypass) เนื่องจากเซิร์ฟเวอร์ตรวจสอบเพียงแค่รูปแบบความยาวของโทเค็น (16 ตัวอักษร) แต่ไม่ได้ตรวจสอบว่าโทเค็นนั้นมีอยู่จริงในระบบหรือผูกกับ User ใด
+   - ผลกระทบต่อระบบจริง: ผู้ไม่หวังดีสามารถสุ่มสร้างโทเค็น 16 ตัวอักษรขึ้นมาเองเพื่อข้ามการยืนยันตัวตน เข้าถึงข้อมูลที่เป็นส่วนตัว และอาจแก้ไขหรือลบข้อมูลในระบบจริงได้
 
-8. Comparison between API tests and UI/Web page tests:
-   - What API tests check better: API tests verify HTTP status codes, response headers, precise payload schemas/data types, raw error structures, and boundary values much faster and more reliably without UI overhead.
-   - What only web page tests can check: Visual layout and rendering (e.g. CSS, responsive design, overlapping elements), client-side interactivity, accessibility (a11y), and true end-to-end user experience within an actual web browser.
+8. การเปรียบเทียบ API Test กับ Web Page Test:
+   - สิ่งที่ API Test ตรวจสอบได้ดีกว่า: ตรวจสอบความถูกต้องของ HTTP Status Code, Headers, โครงสร้างข้อมูล JSON Payload, Type ของข้อมูล และค่าขอบเขต (Boundary Values) ได้รวดเร็ว แม่นยำ และมีประสิทธิภาพกว่ามาก
+   - สิ่งที่มีเฉพาะการทดสอบผ่านหน้าเว็บ (UI/Web Page Test) เท่านั้นที่ตรวจได้: การจัดวาง Layout และ CSS ที่แสดงผลบนหน้าจอจริง, ความ Responsive บนขนาดจอต่างๆ, การทับซ้อนของปุ่ม/องค์ประกอบ และประสบการณ์การใช้งานจริงของผู้ใช้ (User Experience / Accessibility)
